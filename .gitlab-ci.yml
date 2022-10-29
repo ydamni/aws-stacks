@@ -1,0 +1,46 @@
+variables:
+  ### AWS
+  AWS_REGION: us-east-1
+### Project CI/CD variables
+# AWS_ACCESS_KEY_ID             - Protected
+# AWS_ACCOUNT_ID                - Protected
+# AWS_SECRET_ACCESS_KEY         - Protected/Masked
+# PUBLIC_IP                     - Protected/Masked
+
+stages:
+  - prerequisites
+
+verify state locking:
+  stage: prerequisites
+  image:
+    name: hashicorp/terraform:1.2.2
+    entrypoint: [""]
+  only:
+    - main
+  before_script:
+    - apk add --no-cache python3 py3-pip
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+  script:
+    ### Verify if state-lock table exists (i.e. if state lock applied)
+    - aws dynamodb describe-table --table-name product-hunting-terraform-state-lock
+    ### Verify is S3 state storage exists
+    - aws s3 ls product-hunting-terraform-state
+
+apply state locking:
+  stage: prerequisites
+  needs: ["verify state locking"]
+  when: on_failure
+  image:
+    name: hashicorp/terraform:1.2.2
+    entrypoint: [""]
+  only:
+    - main
+  before_script:
+    - apk add --no-cache python3 py3-pip
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+  script:
+    - cd ./state-lock
+    - terraform init
+    - terraform apply -auto-approve
