@@ -61,3 +61,21 @@ create network stack:
     - cd ./network
     - terraform init
     - terraform apply -auto-approve
+
+destroy network stack:
+  stage: network
+  needs: ["create network stack"]
+  when: manual
+  image:
+    name: hashicorp/terraform:1.2.2
+    entrypoint: [""]
+  only:
+    - main
+  before_script:
+    - apk add --no-cache python3 py3-pip
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+  script:
+    - cd ./network
+    - terraform init
+    - terraform destroy -auto-approve
