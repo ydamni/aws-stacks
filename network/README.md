@@ -10,4 +10,4 @@ VPC + Subnets + Internet Gateway + Route Tables
 
 ## Diagram
 
-[Add Network Stack Diagram]
+![Network Stack Diagram](network.svg)

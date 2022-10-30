@@ -10,4 +10,4 @@ Security Groups + EC2 instances (Launch Configuration) + Auto Scaling Group + Ta
 
 ## Diagram
 
-[Add Compute Stack Diagram]
+![Compute Stack Diagram](compute.svg)
