@@ -48,6 +48,7 @@ apply state locking:
 
 create network stack:
   stage: network
+  when: manual
   image:
     name: hashicorp/terraform:1.2.2
     entrypoint: [""]
