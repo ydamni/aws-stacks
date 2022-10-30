@@ -24,9 +24,9 @@ verify state locking:
     - aws configure set region $AWS_REGION
   script:
     ### Verify if state-lock table exists (i.e. if state lock applied)
-    - aws dynamodb describe-table --table-name product-hunting-terraform-state-lock
+    - aws dynamodb describe-table --table-name aws-stacks-terraform-state-lock
     ### Verify is S3 state storage exists
-    - aws s3 ls product-hunting-terraform-state
+    - aws s3 ls aws-stacks-terraform-state
 
 apply state locking:
   stage: prerequisites
