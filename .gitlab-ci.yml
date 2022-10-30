@@ -9,7 +9,7 @@ variables:
 
 stages:
   - prerequisites
-  - network
+  - stack
 
 verify state locking:
   stage: prerequisites
@@ -47,7 +47,7 @@ apply state locking:
     - terraform apply -auto-approve
 
 create network stack:
-  stage: network
+  stage: stack
   when: manual
   image:
     name: hashicorp/terraform:1.2.2
@@ -64,7 +64,7 @@ create network stack:
     - terraform apply -auto-approve
 
 destroy network stack:
-  stage: network
+  stage: stack
   needs: ["create network stack"]
   when: manual
   image:
