@@ -9,6 +9,7 @@ variables:
 
 stages:
   - prerequisites
+  - network
 
 verify state locking:
   stage: prerequisites
@@ -42,5 +43,21 @@ apply state locking:
     - aws configure set region $AWS_REGION
   script:
     - cd ./state-lock
+    - terraform init
+    - terraform apply -auto-approve
+
+create network stack:
+  stage: network
+  image:
+    name: hashicorp/terraform:1.2.2
+    entrypoint: [""]
+  only:
+    - main
+  before_script:
+    - apk add --no-cache python3 py3-pip
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+  script:
+    - cd ./network
     - terraform init
     - terraform apply -auto-approve
