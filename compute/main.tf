@@ -102,43 +102,88 @@ data "aws_ami" "aws-stacks-ami" {
   }
 }
 
-### EC2 instances
+### Launch Configuration for ASG
 
-resource "aws_instance" "aws-stacks-instance-1" {
-  instance_type          = "t2.micro"
-  ami                    = data.aws_ami.aws-stacks-ami.id
-  subnet_id              = data.aws_subnets.aws-stacks-subnets.ids[0]
-  vpc_security_group_ids = [aws_security_group.aws-stacks-sg.id]
-  key_name               = aws_key_pair.aws-stacks-key-pair.key_name
-  user_data              = var.user_data
+resource "aws_launch_configuration" "aws-stacks-launch-configuration" {
+  instance_type   = "t2.micro"
+  name_prefix     = "aws-stacks-asg-"
+  image_id        = data.aws_ami.aws-stacks-ami.id
+  security_groups = [aws_security_group.aws-stacks-sg.id]
+  key_name        = aws_key_pair.aws-stacks-key-pair.key_name
+  user_data       = var.user_data
 
-  tags = {
-    Name = "aws-stacks-instance-1"
+  lifecycle {
+    create_before_destroy = true
   }
 }
 
-resource "aws_instance" "aws-stacks-instance-2" {
-  instance_type          = "t2.micro"
-  ami                    = data.aws_ami.aws-stacks-ami.id
-  subnet_id              = data.aws_subnets.aws-stacks-subnets.ids[1]
-  vpc_security_group_ids = [aws_security_group.aws-stacks-sg.id]
-  key_name               = aws_key_pair.aws-stacks-key-pair.key_name
-  user_data              = var.user_data
+### ASG
 
-  tags = {
-    Name = "aws-stacks-instance-2"
+resource "aws_autoscaling_group" "aws-stacks-asg" {
+  min_size             = 3
+  max_size             = 6
+  desired_capacity     = 3
+  launch_configuration = aws_launch_configuration.aws-stacks-launch-configuration.name
+  vpc_zone_identifier  = [data.aws_subnets.aws-stacks-subnets.ids[0], data.aws_subnets.aws-stacks-subnets.ids[1], data.aws_subnets.aws-stacks-subnets.ids[2]]
+
+  lifecycle {
+    ignore_changes = [desired_capacity, target_group_arns]
+  }
+
+  tag {
+    key                 = "Name"
+    value               = "aws-stacks-asg"
+    propagate_at_launch = true
   }
 }
 
-resource "aws_instance" "aws-stacks-instance-3" {
-  instance_type          = "t2.micro"
-  ami                    = data.aws_ami.aws-stacks-ami.id
-  subnet_id              = data.aws_subnets.aws-stacks-subnets.ids[2]
-  vpc_security_group_ids = [aws_security_group.aws-stacks-sg.id]
-  key_name               = aws_key_pair.aws-stacks-key-pair.key_name
-  user_data              = var.user_data
+### Target Group for ALB
 
-  tags = {
-    Name = "aws-stacks-instance-3"
+resource "aws_lb_target_group" "aws-stacks-lb-target-group-http" {
+  name        = "aws-stacks-tg-http"
+  target_type = "instance"
+  port        = 80
+  protocol    = "HTTP"
+  vpc_id      = data.aws_vpc.aws-stacks-vpc.id
+
+  health_check {
+    healthy_threshold   = "2"
+    unhealthy_threshold = "3"
+    timeout             = "10"
+    interval            = "15"
+    protocol            = "HTTP"
+    matcher             = "200"
+    path                = "/"
   }
+}
+
+### ALB
+
+resource "aws_lb" "aws-stacks-lb" {
+  name               = "aws-stacks-lb"
+  load_balancer_type = "application"
+  subnets = [
+    data.aws_subnets.aws-stacks-subnets.ids[0],
+    data.aws_subnets.aws-stacks-subnets.ids[1],
+    data.aws_subnets.aws-stacks-subnets.ids[2]
+  ]
+  security_groups = [
+    aws_security_group.aws-stacks-sg.id
+  ]
+}
+
+resource "aws_lb_listener" "aws-stacks-lb-listener-http" {
+  load_balancer_arn = aws_lb.aws-stacks-lb.id
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    target_group_arn = aws_lb_target_group.aws-stacks-lb-target-group-http.id
+    type             = "forward"
+  }
+}
+
+resource "aws_autoscaling_attachment" "aws-stacks-asg-attachment" {
+  autoscaling_group_name = aws_autoscaling_group.aws-stacks-asg.id
+  lb_target_group_arn    = aws_lb_target_group.aws-stacks-lb-target-group-http.arn
 }
