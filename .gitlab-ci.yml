@@ -88,6 +88,11 @@ create compute stack:
   image:
     name: hashicorp/terraform:1.2.2
     entrypoint: [""]
+  artifacts:
+    expire_in: "30 days"
+    name: "EC2-SSH-KEY"
+    paths:
+      - $CI_PROJECT_DIR/compute/aws-stacks-ec2-access-key.pem
   only:
     - main
   before_script:
