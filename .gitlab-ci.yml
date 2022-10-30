@@ -83,6 +83,7 @@ destroy network stack:
 
 create compute stack:
   stage: stack
+  needs: ["create network stack"]
   when: manual
   image:
     name: hashicorp/terraform:1.2.2
