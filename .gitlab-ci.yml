@@ -80,3 +80,68 @@ destroy network stack:
     - cd ./network
     - terraform init
     - terraform destroy -auto-approve
+
+create compute stack:
+  stage: stack
+  when: manual
+  image:
+    name: hashicorp/terraform:1.2.2
+    entrypoint: [""]
+  only:
+    - main
+  before_script:
+    - apk add --no-cache python3 py3-pip
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+  script:
+    - cd ./compute
+    ### User data for EC2 inside TF var file
+    - |
+      cat <<EOF | tee ./main.tfvars
+      user_data = <<EOT
+      #!/bin/bash
+      # Script from Stephane Maarek Course (thank you Stephane)
+      # Install a simple web server with httpd
+      yum update -y
+      yum install -y httpd
+      systemctl start httpd
+      systemctl enable httpd
+      echo "<h1>Hello World from $(hostname -f)</h1>" > /var/www/html/index.html
+      EOT
+
+      EOF
+    - terraform init
+    - terraform apply -var-file=main.tfvars -auto-approve
+
+destroy compute stack:
+  stage: stack
+  needs: ["create compute stack"]
+  when: manual
+  image:
+    name: hashicorp/terraform:1.2.2
+    entrypoint: [""]
+  only:
+    - main
+  before_script:
+    - apk add --no-cache python3 py3-pip
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+  script:
+    - cd ./compute
+    ### User data for EC2 inside TF var file
+    - |
+      cat <<EOF | tee ./main.tfvars
+      user_data = <<EOT
+      #!/bin/bash
+      # Script from Stephane Maarek Course (thank you Stephane)
+      # Install a simple web server with httpd
+      yum update -y
+      yum install -y httpd
+      systemctl start httpd
+      systemctl enable httpd
+      echo "<h1>Hello World from $(hostname -f)</h1>" > /var/www/html/index.html
+      EOT
+
+      EOF
+    - terraform init
+    - terraform destroy -var-file=main.tfvars -auto-approve
