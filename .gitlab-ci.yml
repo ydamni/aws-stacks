@@ -5,6 +5,7 @@ variables:
 # AWS_ACCESS_KEY_ID             - Protected
 # AWS_ACCOUNT_ID                - Protected
 # AWS_SECRET_ACCESS_KEY         - Protected/Masked
+# MYSQL_PASSWORD                - Protected/Masked
 # PUBLIC_IP                     - Protected/Masked
 
 stages:
@@ -95,6 +96,44 @@ create compute stack:
       user_data = "IyEvYmluL2Jhc2gKIyBTY3JpcHQgZnJvbSBTdGVwaGFuZSBNYWFyZWsgQ291cnNlICh0aGFuayB5b3UgU3RlcGhhbmUpCiMgSW5zdGFsbCBhIHNpbXBsZSB3ZWIgc2VydmVyIHdpdGggaHR0cGQKeXVtIHVwZGF0ZSAteQp5dW0gaW5zdGFsbCAteSBodHRwZApzeXN0ZW1jdGwgc3RhcnQgaHR0cGQKc3lzdGVtY3RsIGVuYWJsZSBodHRwZAplY2hvICI8aDE+SGVsbG8gV29ybGQgZnJvbSAkKGhvc3RuYW1lIC1mKTwvaDE+IiA+IC92YXIvd3d3L2h0bWwvaW5kZXguaHRtbAo="
       EOF
     - terraform init
+    - terraform apply -var-file=main.tfvars -auto-approve
+
+create containers stack:
+  stage: create
+  needs: ["create network stack"]
+  when: manual
+  image:
+    name: hashicorp/terraform:1.2.2
+    entrypoint: [""]
+  only:
+    - main
+  before_script:
+    - apk add --no-cache curl python3 py3-pip openssl
+    ### Install awscli
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+    ### Install Docker
+    - apk add --no-cache docker openrc
+    ### Install kubectl
+    - curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+    - chmod +x ./kubectl
+    - mv ./kubectl /usr/local/bin/kubectl
+  script:
+    ### ### EKS
+    ### Create EKS Cluster
+    - cd $CI_PROJECT_DIR/containers/eks/cluster
+    - terraform init
+    - terraform apply -auto-approve
+    ### Install EKS kubeconfig file locally
+    - aws eks update-kubeconfig --name aws-stacks-eks-cluster
+    ### Create Kubernetes objects
+    - cd $CI_PROJECT_DIR/containers/eks/objects
+    - |
+      cat <<EOF | tee ./main.tfvars
+      mysql_root_password = "$MYSQL_PASSWORD"
+      EOF
+    - terraform init
+    - terraform refresh -var-file=main.tfvars
     - terraform apply -var-file=main.tfvars -auto-approve
 
 ### ###
