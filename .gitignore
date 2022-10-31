@@ -38,3 +38,6 @@ override.tf.json
 terraform.rc
 
 # End of https://www.toptal.com/developers/gitignore/api/terraform
+
+### Files specific to the project
+compute/aws-stacks-ec2-access-key.pem

@@ -36,9 +36,9 @@ data "aws_subnets" "aws-stacks-subnets" {
 
 ### Security Groups
 
-resource "aws_security_group" "aws-stacks-sg" {
-  name        = "aws-stacks-sg"
-  description = "Allow HTTP, HTTPS & SSH"
+resource "aws_security_group" "aws-stacks-sg-lb" {
+  name        = "aws-stacks-sg-lb"
+  description = "Allow HTTP & HTTPS on ALB"
   vpc_id      = data.aws_vpc.aws-stacks-vpc.id
 
   ingress {
@@ -55,11 +55,37 @@ resource "aws_security_group" "aws-stacks-sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "aws-stacks-sg-lb"
+  }
+}
+
+resource "aws_security_group" "aws-stacks-sg-ec2" {
+  name        = "aws-stacks-sg-ec2"
+  description = "Allow full access to EC2 from ALB only + SSH from my own public IP only"
+  vpc_id      = data.aws_vpc.aws-stacks-vpc.id
+
+  ingress {
+    from_port = 0
+    to_port   = 0
+    protocol  = "-1"
+    security_groups = [
+      aws_security_group.aws-stacks-sg-lb.id
+    ]
+  }
+
   ingress {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [var.public_ip]
   }
 
   egress {
@@ -70,7 +96,7 @@ resource "aws_security_group" "aws-stacks-sg" {
   }
 
   tags = {
-    Name = "aws-stacks-sg"
+    Name = "aws-stacks-sg-ec2"
   }
 }
 
@@ -108,7 +134,7 @@ resource "aws_launch_configuration" "aws-stacks-launch-configuration" {
   instance_type   = "t2.micro"
   name_prefix     = "aws-stacks-asg-"
   image_id        = data.aws_ami.aws-stacks-ami.id
-  security_groups = [aws_security_group.aws-stacks-sg.id]
+  security_groups = [aws_security_group.aws-stacks-sg-ec2.id]
   key_name        = aws_key_pair.aws-stacks-key-pair.key_name
   user_data       = var.user_data
 
@@ -168,7 +194,7 @@ resource "aws_lb" "aws-stacks-lb" {
     data.aws_subnets.aws-stacks-subnets.ids[2]
   ]
   security_groups = [
-    aws_security_group.aws-stacks-sg.id
+    aws_security_group.aws-stacks-sg-lb.id
   ]
 }
 

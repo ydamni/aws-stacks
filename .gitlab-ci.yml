@@ -104,6 +104,7 @@ create compute stack:
     ### User data for EC2 inside TF var file
     - |
       cat <<EOF | tee ./main.tfvars
+      public_ip = "$PUBLIC_IP"
       user_data = <<EOT
       #!/bin/bash
       # Script from Stephane Maarek Course (thank you Stephane)
@@ -137,6 +138,7 @@ destroy compute stack:
     ### User data for EC2 inside TF var file
     - |
       cat <<EOF | tee ./main.tfvars
+      public_ip = "$PUBLIC_IP"
       user_data = <<EOT
       #!/bin/bash
       # Script from Stephane Maarek Course (thank you Stephane)
