@@ -57,6 +57,8 @@ resource "aws_eks_cluster" "aws-stacks-eks-cluster" {
     subnet_ids = [data.aws_subnets.aws-stacks-subnets.ids[0], data.aws_subnets.aws-stacks-subnets.ids[1], data.aws_subnets.aws-stacks-subnets.ids[2]]
   }
 
+  version = "1.22"
+
   depends_on = [
     aws_iam_role_policy_attachment.aws-stacks-AmazonEKSClusterPolicy,
     aws_iam_role_policy_attachment.aws-stacks-AmazonEKSVPCResourceController,
