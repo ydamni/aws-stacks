@@ -9,7 +9,8 @@ variables:
 
 stages:
   - prerequisites
-  - stack
+  - create
+  - destroy
 
 verify state locking:
   stage: prerequisites
@@ -46,8 +47,12 @@ apply state locking:
     - terraform init
     - terraform apply -auto-approve
 
+### ###
+### Create stage jobs
+### ###
+
 create network stack:
-  stage: stack
+  stage: create
   when: manual
   image:
     name: hashicorp/terraform:1.2.2
@@ -63,26 +68,8 @@ create network stack:
     - terraform init
     - terraform apply -auto-approve
 
-destroy network stack:
-  stage: stack
-  needs: ["create network stack"]
-  when: manual
-  image:
-    name: hashicorp/terraform:1.2.2
-    entrypoint: [""]
-  only:
-    - main
-  before_script:
-    - apk add --no-cache python3 py3-pip
-    - pip3 install awscli
-    - aws configure set region $AWS_REGION
-  script:
-    - cd ./network
-    - terraform init
-    - terraform destroy -auto-approve
-
 create compute stack:
-  stage: stack
+  stage: create
   needs: ["create network stack"]
   when: manual
   image:
@@ -110,8 +97,30 @@ create compute stack:
     - terraform init
     - terraform apply -var-file=main.tfvars -auto-approve
 
+### ###
+### Destroy stage jobs
+### ###
+
+destroy network stack:
+  stage: destroy
+  needs: ["create network stack"]
+  when: manual
+  image:
+    name: hashicorp/terraform:1.2.2
+    entrypoint: [""]
+  only:
+    - main
+  before_script:
+    - apk add --no-cache python3 py3-pip
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+  script:
+    - cd ./network
+    - terraform init
+    - terraform destroy -auto-approve
+
 destroy compute stack:
-  stage: stack
+  stage: destroy
   needs: ["create compute stack"]
   when: manual
   image:
