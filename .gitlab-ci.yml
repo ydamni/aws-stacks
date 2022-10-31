@@ -105,17 +105,7 @@ create compute stack:
     - |
       cat <<EOF | tee ./main.tfvars
       public_ip = "$PUBLIC_IP"
-      user_data = <<EOT
-      #!/bin/bash
-      # Script from Stephane Maarek Course (thank you Stephane)
-      # Install a simple web server with httpd
-      yum update -y
-      yum install -y httpd
-      systemctl start httpd
-      systemctl enable httpd
-      echo "<h1>Hello World from $(hostname -f)</h1>" > /var/www/html/index.html
-      EOT
-
+      user_data = "IyEvYmluL2Jhc2gKIyBTY3JpcHQgZnJvbSBTdGVwaGFuZSBNYWFyZWsgQ291cnNlICh0aGFuayB5b3UgU3RlcGhhbmUpCiMgSW5zdGFsbCBhIHNpbXBsZSB3ZWIgc2VydmVyIHdpdGggaHR0cGQKeXVtIHVwZGF0ZSAteQp5dW0gaW5zdGFsbCAteSBodHRwZApzeXN0ZW1jdGwgc3RhcnQgaHR0cGQKc3lzdGVtY3RsIGVuYWJsZSBodHRwZAplY2hvICI8aDE+SGVsbG8gV29ybGQgZnJvbSAkKGhvc3RuYW1lIC1mKTwvaDE+IiA+IC92YXIvd3d3L2h0bWwvaW5kZXguaHRtbAo="
       EOF
     - terraform init
     - terraform apply -var-file=main.tfvars -auto-approve
@@ -139,17 +129,7 @@ destroy compute stack:
     - |
       cat <<EOF | tee ./main.tfvars
       public_ip = "$PUBLIC_IP"
-      user_data = <<EOT
-      #!/bin/bash
-      # Script from Stephane Maarek Course (thank you Stephane)
-      # Install a simple web server with httpd
-      yum update -y
-      yum install -y httpd
-      systemctl start httpd
-      systemctl enable httpd
-      echo "<h1>Hello World from $(hostname -f)</h1>" > /var/www/html/index.html
-      EOT
-
+      user_data = "IyEvYmluL2Jhc2gKIyBTY3JpcHQgZnJvbSBTdGVwaGFuZSBNYWFyZWsgQ291cnNlICh0aGFuayB5b3UgU3RlcGhhbmUpCiMgSW5zdGFsbCBhIHNpbXBsZSB3ZWIgc2VydmVyIHdpdGggaHR0cGQKeXVtIHVwZGF0ZSAteQp5dW0gaW5zdGFsbCAteSBodHRwZApzeXN0ZW1jdGwgc3RhcnQgaHR0cGQKc3lzdGVtY3RsIGVuYWJsZSBodHRwZAplY2hvICI8aDE+SGVsbG8gV29ybGQgZnJvbSAkKGhvc3RuYW1lIC1mKTwvaDE+IiA+IC92YXIvd3d3L2h0bWwvaW5kZXguaHRtbAo="
       EOF
     - terraform init
     - terraform destroy -var-file=main.tfvars -auto-approve
