@@ -181,3 +181,41 @@ destroy compute stack:
       EOF
     - terraform init
     - terraform destroy -var-file=main.tfvars -auto-approve
+
+destroy containers stack:
+  stage: destroy
+  needs: ["create containers stack"]
+  when: manual
+  image:
+    name: hashicorp/terraform:1.2.2
+    entrypoint: [""]
+  only:
+    - main
+  before_script:
+    - apk add --no-cache curl python3 py3-pip openssl
+    ### Install awscli
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+    ### Install Docker
+    - apk add --no-cache docker openrc
+    ### Install kubectl
+    - curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+    - chmod +x ./kubectl
+    - mv ./kubectl /usr/local/bin/kubectl
+  script:
+    ### ### EKS
+    ### Install EKS kubeconfig file locally
+    - aws eks update-kubeconfig --name aws-stacks-eks-cluster
+    ### Destroy Kubernetes objects
+    - cd $CI_PROJECT_DIR/containers/eks/objects
+    - |
+      cat <<EOF | tee ./main.tfvars
+      mysql_root_password = "$MYSQL_PASSWORD"
+      EOF
+    - terraform init
+    - terraform refresh -var-file=main.tfvars
+    - terraform destroy -var-file=main.tfvars -auto-approve
+    ### Destroy EKS Cluster
+    - cd $CI_PROJECT_DIR/containers/eks/cluster
+    - terraform init
+    - terraform destroy -auto-approve
