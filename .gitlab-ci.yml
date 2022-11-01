@@ -102,9 +102,9 @@ create containers stack:
   stage: create
   needs: ["create network stack"]
   when: manual
-  image:
-    name: hashicorp/terraform:1.2.2
-    entrypoint: [""]
+  image: docker:20.10
+  services:
+    - docker:20.10-dind
   only:
     - main
   before_script:
@@ -112,17 +112,35 @@ create containers stack:
     ### Install awscli
     - pip3 install awscli
     - aws configure set region $AWS_REGION
-    ### Install Docker
-    - apk add --no-cache docker openrc
+    ### Install Terraform
+    - apk add --no-cache terraform --repository=https://dl-cdn.alpinelinux.org/alpine/edge/community
     ### Install kubectl
     - curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
     - chmod +x ./kubectl
     - mv ./kubectl /usr/local/bin/kubectl
   script:
+    ### ### ECR
+    ### Create ECR repositories
+    - cd $CI_PROJECT_DIR/containers/ecr
+    - terraform init
+    - terraform apply -auto-approve
+    ### Connect to AWS ECR registry
+    - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+    ### Pull public MySql & phpMyAdmin images
+    - docker pull mysql:latest
+    - docker pull phpmyadmin:latest
+    ### Tag public images
+    - docker tag mysql:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/aws-stacks-mysql:latest
+    - docker tag phpmyadmin:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/aws-stacks-phpmyadmin:latest
+    ### Push public images to ECR
+    - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/aws-stacks-mysql:latest
+    - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/aws-stacks-phpmyadmin:latest
     ### ### ECS
+    ### Create ECS Cluster
     - cd $CI_PROJECT_DIR/containers/ecs
     - |
       cat <<EOF | tee ./main.tfvars
+      ecr_registry = "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
       mysql_root_password = "$MYSQL_PASSWORD"
       EOF
     - terraform init
@@ -139,6 +157,7 @@ create containers stack:
     - cd $CI_PROJECT_DIR/containers/eks/objects
     - |
       cat <<EOF | tee ./main.tfvars
+      ecr_registry = "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
       mysql_root_password = "$MYSQL_PASSWORD"
       EOF
     - terraform init
@@ -212,10 +231,17 @@ destroy containers stack:
     - chmod +x ./kubectl
     - mv ./kubectl /usr/local/bin/kubectl
   script:
+    ### ### ECR
+    ### Destroy ECR repositories
+    - cd $CI_PROJECT_DIR/containers/ecr
+    - terraform init
+    - terraform destroy -auto-approve
     ### ### ECS
+    ### Destroy ECS Cluster
     - cd $CI_PROJECT_DIR/containers/ecs
     - |
       cat <<EOF | tee ./main.tfvars
+      ecr_registry = "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
       mysql_root_password = "$MYSQL_PASSWORD"
       EOF
     - terraform init
@@ -228,6 +254,7 @@ destroy containers stack:
     - cd $CI_PROJECT_DIR/containers/eks/objects
     - |
       cat <<EOF | tee ./main.tfvars
+      ecr_registry = "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
       mysql_root_password = "$MYSQL_PASSWORD"
       EOF
     - terraform init

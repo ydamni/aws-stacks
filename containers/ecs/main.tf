@@ -51,6 +51,12 @@ resource "aws_security_group" "aws-stacks-sg-allow-http" {
   }
 }
 
+### Get Task Execution Role for ECS to use ECR images
+
+data "aws_iam_role" "aws-stacks-ecs_task_execution_role" {
+  name = "ecsTaskExecutionRole"
+}
+
 ### ECS resources
 
 resource "aws_ecs_cluster" "aws-stacks-cluster" {
@@ -74,10 +80,12 @@ resource "aws_ecs_task_definition" "aws-stacks-td-mysql-phpmyadmin" {
   network_mode             = "awsvpc"
   cpu                      = 512
   memory                   = 1024
+  execution_role_arn       = data.aws_iam_role.aws-stacks-ecs_task_execution_role.arn
+
   container_definitions = jsonencode([
     {
       name      = "mysql"
-      image     = "docker.io/mysql:latest"
+      image     = "${var.ecr_registry}/aws-stacks-mysql:latest"
       cpu       = 256
       memory    = 768
       essential = true
@@ -96,7 +104,7 @@ resource "aws_ecs_task_definition" "aws-stacks-td-mysql-phpmyadmin" {
     },
     {
       name      = "phpmyadmin"
-      image     = "docker.io/phpmyadmin:latest"
+      image     = "${var.ecr_registry}/aws-stacks-phpmyadmin:latest"
       cpu       = 256
       memory    = 256
       essential = true

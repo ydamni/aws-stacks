@@ -63,7 +63,7 @@ resource "kubernetes_deployment" "aws-stacks-kube-deployment-mysql" {
       spec {
         container {
           name  = "mysql"
-          image = "mysql:latest"
+          image = "${var.ecr_registry}/aws-stacks-mysql:latest"
 
           port {
             container_port = 3306
@@ -128,7 +128,7 @@ resource "kubernetes_deployment" "aws-stacks-kube-deployment-phpmyadmin" {
       spec {
         container {
           name  = "phpmyadmin"
-          image = "phpmyadmin:latest"
+          image = "${var.ecr_registry}/aws-stacks-phpmyadmin:latest"
 
           port {
             container_port = 80
