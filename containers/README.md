@@ -10,4 +10,4 @@ ECR + ECS + EKS
 
 ## Diagram
 
-![Containers Stack Diagram](containers.svg)
+![Containers Stack Diagram](containers.png)
