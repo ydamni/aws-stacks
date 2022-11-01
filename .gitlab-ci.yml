@@ -119,6 +119,15 @@ create containers stack:
     - chmod +x ./kubectl
     - mv ./kubectl /usr/local/bin/kubectl
   script:
+    ### ### ECS
+    - cd $CI_PROJECT_DIR/containers/ecs
+    - |
+      cat <<EOF | tee ./main.tfvars
+      mysql_root_password = "$MYSQL_PASSWORD"
+      EOF
+    - terraform init
+    - terraform refresh -var-file=main.tfvars
+    - terraform apply -var-file=main.tfvars -auto-approve
     ### ### EKS
     ### Create EKS Cluster
     - cd $CI_PROJECT_DIR/containers/eks/cluster
@@ -203,6 +212,15 @@ destroy containers stack:
     - chmod +x ./kubectl
     - mv ./kubectl /usr/local/bin/kubectl
   script:
+    ### ### ECS
+    - cd $CI_PROJECT_DIR/containers/ecs
+    - |
+      cat <<EOF | tee ./main.tfvars
+      mysql_root_password = "$MYSQL_PASSWORD"
+      EOF
+    - terraform init
+    - terraform refresh -var-file=main.tfvars
+    - terraform destroy -var-file=main.tfvars -auto-approve
     ### ### EKS
     ### Install EKS kubeconfig file locally
     - aws eks update-kubeconfig --name aws-stacks-eks-cluster
