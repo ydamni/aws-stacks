@@ -82,22 +82,53 @@ resource "aws_iam_role_policy_attachment" "aws-stacks-attachment-ses" {
   policy_arn = data.aws_iam_policy.aws-stacks-iam-policy-ses.arn
 }
 
+# Use SNS
+
+data "aws_iam_policy" "aws-stacks-iam-policy-sns" {
+  arn = "arn:aws:iam::aws:policy/AmazonSNSFullAccess"
+}
+
+resource "aws_iam_role_policy_attachment" "aws-stacks-attachment-sns" {
+  role       = aws_iam_role.aws-stacks-lambda-role.name
+  policy_arn = data.aws_iam_policy.aws-stacks-iam-policy-sns.arn
+}
+
 ### Lambda functions
 
 # Send Email with SES
 
-data "archive_file" "zip_the_python_code" {
+data "archive_file" "aws-stacks-zip-lambda-email" {
   type        = "zip"
-  source_file = "${path.module}/lambda_functions/lambda_function.py"
-  output_path = "${path.module}/lambda_functions/email.zip"
+  source_file = "${path.module}/lambda_functions/ses/lambda_function.py"
+  output_path = "${path.module}/lambda_functions/ses/email.zip"
 }
 
 resource "aws_lambda_function" "aws-stacks-lambda-function-email" {
-  filename      = "${path.module}/lambda_functions/email.zip"
+  filename      = "${path.module}/lambda_functions/ses/email.zip"
   function_name = "email"
   role          = aws_iam_role.aws-stacks-lambda-role.arn
   handler       = "lambda_function.lambda_handler"
   runtime       = "python3.9"
 
   depends_on  = [aws_iam_role_policy_attachment.aws-stacks-attachment-ses]
+}
+
+### Lambda functions
+
+# Send SMS with SNS
+
+data "archive_file" "aws-stacks-zip-lambda-sms" {
+  type        = "zip"
+  source_file = "${path.module}/lambda_functions/sns/lambda_function.py"
+  output_path = "${path.module}/lambda_functions/sns/sms.zip"
+}
+
+resource "aws_lambda_function" "aws-stacks-lambda-function-sms" {
+  filename      = "${path.module}/lambda_functions/sns/sms.zip"
+  function_name = "sms"
+  role          = aws_iam_role.aws-stacks-lambda-role.arn
+  handler       = "lambda_function.lambda_handler"
+  runtime       = "python3.9"
+
+  depends_on  = [aws_iam_role_policy_attachment.aws-stacks-attachment-sns]
 }
