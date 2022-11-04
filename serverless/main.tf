@@ -71,7 +71,9 @@ resource "aws_iam_role_policy_attachment" "aws-stacks-attachment-logs" {
   policy_arn = aws_iam_policy.aws-stacks-iam-policy-logs.arn
 }
 
-# Use SES
+### Lambda functions
+
+# Link SES Full Access Policy to Lambda Role
 
 data "aws_iam_policy" "aws-stacks-iam-policy-ses" {
   arn = "arn:aws:iam::aws:policy/AmazonSESFullAccess"
@@ -81,19 +83,6 @@ resource "aws_iam_role_policy_attachment" "aws-stacks-attachment-ses" {
   role       = aws_iam_role.aws-stacks-lambda-role.name
   policy_arn = data.aws_iam_policy.aws-stacks-iam-policy-ses.arn
 }
-
-# Use SNS
-
-data "aws_iam_policy" "aws-stacks-iam-policy-sns" {
-  arn = "arn:aws:iam::aws:policy/AmazonSNSFullAccess"
-}
-
-resource "aws_iam_role_policy_attachment" "aws-stacks-attachment-sns" {
-  role       = aws_iam_role.aws-stacks-lambda-role.name
-  policy_arn = data.aws_iam_policy.aws-stacks-iam-policy-sns.arn
-}
-
-### Lambda functions
 
 # Send Email with SES
 
@@ -110,10 +99,19 @@ resource "aws_lambda_function" "aws-stacks-lambda-function-email" {
   handler       = "lambda_function.lambda_handler"
   runtime       = "python3.9"
 
-  depends_on  = [aws_iam_role_policy_attachment.aws-stacks-attachment-ses]
+  depends_on = [aws_iam_role_policy_attachment.aws-stacks-attachment-ses]
 }
 
-### Lambda functions
+# Link SNS Full Access Policy to Lambda Role
+
+data "aws_iam_policy" "aws-stacks-iam-policy-sns" {
+  arn = "arn:aws:iam::aws:policy/AmazonSNSFullAccess"
+}
+
+resource "aws_iam_role_policy_attachment" "aws-stacks-attachment-sns" {
+  role       = aws_iam_role.aws-stacks-lambda-role.name
+  policy_arn = data.aws_iam_policy.aws-stacks-iam-policy-sns.arn
+}
 
 # Send SMS with SNS
 
@@ -130,5 +128,107 @@ resource "aws_lambda_function" "aws-stacks-lambda-function-sms" {
   handler       = "lambda_function.lambda_handler"
   runtime       = "python3.9"
 
-  depends_on  = [aws_iam_role_policy_attachment.aws-stacks-attachment-sns]
+  depends_on = [aws_iam_role_policy_attachment.aws-stacks-attachment-sns]
+}
+
+### Step Functions
+
+# Create Role & Policy for Step Functions
+
+resource "aws_iam_role" "aws-stacks-iam-role-sfn" {
+name   = "aws-stacks-iam-role-sfn"
+assume_role_policy = <<EOF
+{
+ "Version": "2012-10-17",
+ "Statement": [
+   {
+     "Action": "sts:AssumeRole",
+     "Principal": {
+       "Service": "states.amazonaws.com"
+     },
+     "Effect": "Allow",
+     "Sid": ""
+   }
+ ]
+}
+EOF
+}
+
+resource "aws_iam_policy" "aws-stacks-iam-policy-sfn" {
+  name        = "aws-stacks-iam-policy-sfn"
+  path        = "/"
+  description = "Authorize Step Functions to Invoke Lambda Functions"
+  policy      = <<EOF
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "lambda:InvokeFunction"
+            ],
+            "Resource": [
+                "arn:aws:lambda:${var.aws_region}:${var.account_id}:function:${aws_lambda_function.aws-stacks-lambda-function-email.function_name}:*",
+                "arn:aws:lambda:${var.aws_region}:${var.account_id}:function:${aws_lambda_function.aws-stacks-lambda-function-sms.function_name}:*"
+            ]
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "lambda:InvokeFunction"
+            ],
+            "Resource": [
+                "arn:aws:lambda:${var.aws_region}:${var.account_id}:function:${aws_lambda_function.aws-stacks-lambda-function-email.function_name}",
+                "arn:aws:lambda:${var.aws_region}:${var.account_id}:function:${aws_lambda_function.aws-stacks-lambda-function-sms.function_name}"
+            ]
+        }
+    ]
+}
+EOF
+}
+
+resource "aws_iam_role_policy_attachment" "aws-stacks-attachment-sfn" {
+  role       = aws_iam_role.aws-stacks-iam-role-sfn.name
+  policy_arn = aws_iam_policy.aws-stacks-iam-policy-sfn.arn
+}
+
+# Create State Machine
+
+resource "aws_sfn_state_machine" "aws-stacks-sfn-state-machine" {
+  name     = "aws-stacks-sfn-state-machine"
+  role_arn = aws_iam_role.aws-stacks-iam-role-sfn.arn
+
+  definition = <<EOF
+{
+    "Comment": "State machine for sending SMS & email",
+    "StartAt": "Select Type of Sending",
+    "States": {
+        "Select Type of Sending": {
+            "Type": "Choice",
+            "Choices": [
+                {
+                    "Variable": "$.typeOfSending",
+                    "StringEquals": "email",
+                    "Next": "Email"
+                },
+                {
+                    "Variable": "$.typeOfSending",
+                    "StringEquals": "sms",
+                    "Next": "SMS"
+                }
+            ]
+        },
+        "Email": {
+            "Type" : "Task",
+            "Resource": "arn:aws:lambda:${var.aws_region}:${var.account_id}:function:${aws_lambda_function.aws-stacks-lambda-function-email.function_name}",
+            "End": true
+        },
+        "SMS": {
+            "Type" : "Task",
+            "Resource": "arn:aws:lambda:${var.aws_region}:${var.account_id}:function:${aws_lambda_function.aws-stacks-lambda-function-sms.function_name}",
+            "End": true
+        }
+    }
+}
+EOF
 }
