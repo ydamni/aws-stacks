@@ -41,3 +41,4 @@ terraform.rc
 
 ### Files specific to the project
 compute/aws-stacks-ec2-access-key.pem
+serverless/lambda_functions/*.zip
