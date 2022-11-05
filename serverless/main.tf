@@ -348,3 +348,66 @@ resource "aws_lambda_function" "aws-stacks-lambda-function-api" {
 
   depends_on = [aws_iam_role_policy_attachment.aws-stacks-attachment-api]
 }
+
+### API Gateway resources
+
+resource "aws_lambda_permission" "aws-stacks-lambda-permission-api-gateway" {
+  statement_id  = "AllowExecutionFromAPIGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.aws-stacks-lambda-function-api.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "arn:aws:execute-api:${var.aws_region}:${var.account_id}:${aws_api_gateway_rest_api.aws-stacks-api-gateway-rest.id}/*/${aws_api_gateway_method.aws-stacks-api-gateway-method.http_method}${aws_api_gateway_resource.aws-stacks-api-gateway-resource.path}"
+}
+
+resource "aws_api_gateway_rest_api" "aws-stacks-api-gateway-rest" {
+  name        = "aws-stacks-rest-api-gateway"
+  description = "REST API for sending Email & SMS"
+
+  endpoint_configuration {
+    types = ["REGIONAL"]
+  }
+}
+
+resource "aws_api_gateway_resource" "aws-stacks-api-gateway-resource" {
+  rest_api_id = aws_api_gateway_rest_api.aws-stacks-api-gateway-rest.id
+  parent_id   = aws_api_gateway_rest_api.aws-stacks-api-gateway-rest.root_resource_id
+  path_part   = "sending"
+
+  depends_on = [aws_api_gateway_rest_api.aws-stacks-api-gateway-rest]
+}
+
+resource "aws_api_gateway_method" "aws-stacks-api-gateway-method" {
+  rest_api_id   = aws_api_gateway_rest_api.aws-stacks-api-gateway-rest.id
+  resource_id   = aws_api_gateway_resource.aws-stacks-api-gateway-resource.id
+  http_method   = "POST"
+  authorization = "NONE"
+
+  depends_on = [aws_api_gateway_resource.aws-stacks-api-gateway-resource]
+}
+
+resource "aws_api_gateway_integration" "aws-stacks-api-gateway-integration" {
+  rest_api_id             = aws_api_gateway_rest_api.aws-stacks-api-gateway-rest.id
+  resource_id             = aws_api_gateway_resource.aws-stacks-api-gateway-resource.id
+  http_method             = aws_api_gateway_method.aws-stacks-api-gateway-method.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.aws-stacks-lambda-function-api.invoke_arn
+
+  depends_on = [aws_api_gateway_method.aws-stacks-api-gateway-method]
+}
+
+resource "aws_api_gateway_deployment" "aws-stacks-api-gateway-deployment" {
+  rest_api_id = aws_api_gateway_rest_api.aws-stacks-api-gateway-rest.id
+
+  lifecycle {
+    create_before_destroy = true
+  }
+
+  depends_on = [aws_api_gateway_integration.aws-stacks-api-gateway-integration]
+}
+
+resource "aws_api_gateway_stage" "aws-stacks-api-gateway-stage" {
+  deployment_id = aws_api_gateway_deployment.aws-stacks-api-gateway-deployment.id
+  rest_api_id   = aws_api_gateway_rest_api.aws-stacks-api-gateway-rest.id
+  stage_name    = "sendingStage"
+}
