@@ -88,10 +88,43 @@ resource "aws_iam_role_policy_attachment" "aws-stacks-attachment-ses" {
 
 # Send Email with SES
 
+resource "local_file" "aws-stacks-file-lambda-email" {
+  filename = "${path.module}/lambda_functions/ses/lambda_function.py"
+  content  = <<EOF
+import boto3
+
+ses = boto3.client('ses')
+
+def lambda_handler(event, context):
+    ses.send_email(
+        Source='${var.source_email}',
+        Destination={
+            'ToAddresses': [
+                event['destinationEmail'],
+            ]
+        },
+        Message={
+            'Subject': {
+                'Data': 'AWS Stacks - Serverless'
+            },
+            'Body': {
+                'Text': {
+                    'Data': event['message']
+                }
+            }
+        }
+    )
+    return 'Email sent!'
+EOF
+
+}
+
 data "archive_file" "aws-stacks-zip-lambda-email" {
   type        = "zip"
   source_file = "${path.module}/lambda_functions/ses/lambda_function.py"
   output_path = "${path.module}/lambda_functions/ses/email.zip"
+
+  depends_on = [local_file.aws-stacks-file-lambda-email]
 }
 
 resource "aws_lambda_function" "aws-stacks-lambda-function-email" {
@@ -119,10 +152,29 @@ resource "aws_iam_role_policy_attachment" "aws-stacks-attachment-sns" {
 
 # Send SMS with SNS
 
+resource "local_file" "aws-stacks-file-lambda-sms" {
+  filename = "${path.module}/lambda_functions/sns/lambda_function.py"
+  content  = <<EOF
+import boto3
+
+sns = boto3.client('sns')
+
+def lambda_handler(event, context):
+    sns.publish(
+        PhoneNumber=event['phoneNumber'],
+        Message=event['message']
+    )
+    return 'SMS sent!'
+EOF
+
+}
+
 data "archive_file" "aws-stacks-zip-lambda-sms" {
   type        = "zip"
   source_file = "${path.module}/lambda_functions/sns/lambda_function.py"
   output_path = "${path.module}/lambda_functions/sns/sms.zip"
+
+  depends_on = [local_file.aws-stacks-file-lambda-sms]
 }
 
 resource "aws_lambda_function" "aws-stacks-lambda-function-sms" {
@@ -140,8 +192,8 @@ resource "aws_lambda_function" "aws-stacks-lambda-function-sms" {
 # Create Role & Policy for Step Functions
 
 resource "aws_iam_role" "aws-stacks-iam-role-sfn" {
-name   = "aws-stacks-iam-role-sfn"
-assume_role_policy = <<EOF
+  name               = "aws-stacks-iam-role-sfn"
+  assume_role_policy = <<EOF
 {
  "Version": "2012-10-17",
  "Statement": [
@@ -275,7 +327,7 @@ def lambda_handler(event, context):
         )
     }
 EOF
-  
+
   depends_on = [aws_sfn_state_machine.aws-stacks-sfn-state-machine]
 }
 
