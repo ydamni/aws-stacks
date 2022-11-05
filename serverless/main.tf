@@ -73,6 +73,8 @@ resource "aws_iam_role_policy_attachment" "aws-stacks-attachment-logs" {
 
 ### Lambda functions
 
+## SES
+
 # Link SES Full Access Policy to Lambda Role
 
 data "aws_iam_policy" "aws-stacks-iam-policy-ses" {
@@ -101,6 +103,8 @@ resource "aws_lambda_function" "aws-stacks-lambda-function-email" {
 
   depends_on = [aws_iam_role_policy_attachment.aws-stacks-attachment-ses]
 }
+
+## SNS
 
 # Link SNS Full Access Policy to Lambda Role
 
@@ -231,4 +235,64 @@ resource "aws_sfn_state_machine" "aws-stacks-sfn-state-machine" {
     }
 }
 EOF
+}
+
+### Lambda Function for REST API
+
+## Rest API Handler
+
+# Link Step Functions Full Access Policy to Lambda Role
+
+data "aws_iam_policy" "aws-stacks-iam-policy-sfn" {
+  arn = "arn:aws:iam::aws:policy/AWSStepFunctionsFullAccess"
+}
+
+resource "aws_iam_role_policy_attachment" "aws-stacks-attachment-api" {
+  role       = aws_iam_role.aws-stacks-lambda-role.name
+  policy_arn = data.aws_iam_policy.aws-stacks-iam-policy-sfn.arn
+}
+
+# Send events from API to Step Functions
+
+resource "local_file" "aws-stacks-api-handler" {
+  filename = "${path.module}/lambda_functions/api/lambda_function.py"
+  content  = <<EOF
+import boto3
+import json
+
+sfn = boto3.client('stepfunctions')
+
+def lambda_handler(event, context):
+    sfn.start_execution(
+        stateMachineArn="${aws_sfn_state_machine.aws-stacks-sfn-state-machine.arn}",
+        input=event['body']
+    )
+    
+    return {
+        "statusCode": 200,
+        "body": json.dumps(
+            {"Status": "Instruction sent to the REST API Handler!"},
+        )
+    }
+EOF
+  
+  depends_on = [aws_sfn_state_machine.aws-stacks-sfn-state-machine]
+}
+
+data "archive_file" "aws-stacks-zip-lambda-api" {
+  type        = "zip"
+  source_file = "${path.module}/lambda_functions/api/lambda_function.py"
+  output_path = "${path.module}/lambda_functions/api/api.zip"
+
+  depends_on = [local_file.aws-stacks-api-handler]
+}
+
+resource "aws_lambda_function" "aws-stacks-lambda-function-api" {
+  filename      = "${path.module}/lambda_functions/api/api.zip"
+  function_name = "rest_api_handler"
+  role          = aws_iam_role.aws-stacks-lambda-role.arn
+  handler       = "lambda_function.lambda_handler"
+  runtime       = "python3.9"
+
+  depends_on = [aws_iam_role_policy_attachment.aws-stacks-attachment-api]
 }
