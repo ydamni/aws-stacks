@@ -134,7 +134,7 @@ resource "aws_lambda_function" "aws-stacks-lambda-function-email" {
   handler       = "lambda_function.lambda_handler"
   runtime       = "python3.9"
 
-  depends_on = [aws_iam_role_policy_attachment.aws-stacks-attachment-ses]
+  depends_on = [aws_iam_role_policy_attachment.aws-stacks-attachment-ses, data.archive_file.aws-stacks-zip-lambda-email]
 }
 
 ## SNS
@@ -184,7 +184,7 @@ resource "aws_lambda_function" "aws-stacks-lambda-function-sms" {
   handler       = "lambda_function.lambda_handler"
   runtime       = "python3.9"
 
-  depends_on = [aws_iam_role_policy_attachment.aws-stacks-attachment-sns]
+  depends_on = [aws_iam_role_policy_attachment.aws-stacks-attachment-sns, data.archive_file.aws-stacks-zip-lambda-sms]
 }
 
 ### Step Functions
@@ -346,7 +346,7 @@ resource "aws_lambda_function" "aws-stacks-lambda-function-api" {
   handler       = "lambda_function.lambda_handler"
   runtime       = "python3.9"
 
-  depends_on = [aws_iam_role_policy_attachment.aws-stacks-attachment-api]
+  depends_on = [aws_iam_role_policy_attachment.aws-stacks-attachment-api, data.archive_file.aws-stacks-zip-lambda-api]
 }
 
 ### API Gateway resources

@@ -7,6 +7,8 @@ variables:
 # AWS_SECRET_ACCESS_KEY         - Protected/Masked
 # MYSQL_PASSWORD                - Protected/Masked
 # PUBLIC_IP                     - Protected/Masked
+# SERVERLESS_DEST_EMAIL         - Protected
+# SERVERLESS_SOURCE_EMAIL       - Protected
 
 stages:
   - prerequisites
@@ -164,6 +166,30 @@ create containers stack:
     - terraform refresh -var-file=main.tfvars
     - terraform apply -var-file=main.tfvars -auto-approve
 
+create serverless stack:
+  stage: create
+  when: manual
+  image:
+    name: hashicorp/terraform:1.2.2
+    entrypoint: [""]
+  only:
+    - main
+  before_script:
+    - apk add --no-cache python3 py3-pip
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+  script:
+    - cd ./serverless
+    - |
+      cat <<EOF | tee ./main.tfvars
+      source_email      = "$SERVERLESS_SOURCE_EMAIL"
+      destination_email = "$SERVERLESS_DEST_EMAIL"
+      account_id        = "$AWS_ACCOUNT_ID"
+      aws_region        = "$AWS_REGION"
+      EOF
+    - terraform init
+    - terraform apply -var-file=main.tfvars -auto-approve
+
 ### ###
 ### Destroy stage jobs
 ### ###
@@ -264,3 +290,28 @@ destroy containers stack:
     - cd $CI_PROJECT_DIR/containers/eks/cluster
     - terraform init
     - terraform destroy -auto-approve
+
+destroy serverless stack:
+  stage: destroy
+  needs: ["create serverless stack"]
+  when: manual
+  image:
+    name: hashicorp/terraform:1.2.2
+    entrypoint: [""]
+  only:
+    - main
+  before_script:
+    - apk add --no-cache python3 py3-pip
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+  script:
+    - cd ./serverless
+    - |
+      cat <<EOF | tee ./main.tfvars
+      source_email      = "$SERVERLESS_SOURCE_EMAIL"
+      destination_email = "$SERVERLESS_DEST_EMAIL"
+      account_id        = "$AWS_ACCOUNT_ID"
+      aws_region        = "$AWS_REGION"
+      EOF
+    - terraform init
+    - terraform destroy -var-file=main.tfvars -auto-approve
