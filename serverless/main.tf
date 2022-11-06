@@ -411,3 +411,132 @@ resource "aws_api_gateway_stage" "aws-stacks-api-gateway-stage" {
   rest_api_id   = aws_api_gateway_rest_api.aws-stacks-api-gateway-rest.id
   stage_name    = "sendingStage"
 }
+
+### Static Web Hosting
+
+# Website files
+
+resource "local_file" "aws-stacks-website-index" {
+  filename = "${path.module}/website/s3/index.html"
+  content  = <<EOF
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project 2 - Cloud Is Free</title>
+    <script src="formToApi.js"></script>
+</head>
+<body>
+    <form>
+        <div>
+            <label>Message:</label>
+            <input type="text" name="message">
+            <br><br>
+            <label>Email:</label>
+            <input name="email">
+            <button onClick="formToApi(event,'email')">Send an Email</button>
+            <br><br>
+            <label>SMS:</label>
+            <input name="sms">
+            <button onClick="formToApi(event,'sms')">Send a SMS</button>
+        </div>
+    </form>
+</body>
+</html>
+EOF
+}
+
+resource "local_file" "aws-stacks-website-formtoapi" {
+  filename = "${path.module}/website/s3/formToApi.js"
+  content  = <<EOF
+function formToApi(event, typeOfSending) {
+
+    event.preventDefault()
+
+    var data = {
+        typeOfSending: typeOfSending,
+        destinationEmail: document.getElementsByName('email')[0].value,
+        phoneNumber: document.getElementsByName('sms')[0].value,
+        message: document.getElementsByName('message')[0].value
+    }
+
+    fetch( "${aws_api_gateway_stage.aws-stacks-api-gateway-stage.invoke_url}/${aws_api_gateway_resource.aws-stacks-api-gateway-resource.path_part}" , {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(data),
+        mode: "no-cors"
+    })
+}
+EOF
+
+  depends_on = [aws_api_gateway_stage.aws-stacks-api-gateway-stage, aws_api_gateway_resource.aws-stacks-api-gateway-resource]
+}
+
+# S3 resources
+
+resource "aws_s3_bucket" "aws-stacks-s3-bucket" {
+  bucket = "aws-stacks-serverless-s3-bucket"
+}
+
+resource "aws_s3_bucket_acl" "aws-stacks-s3-bucket-acl" {
+  bucket = aws_s3_bucket.aws-stacks-s3-bucket.id
+  acl    = "public-read"
+}
+
+resource "aws_s3_bucket_policy" "aws-stacks-s3-bucket-policy" {
+  bucket = aws_s3_bucket.aws-stacks-s3-bucket.id
+  policy = <<EOF
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "PublicReadGetObject",
+            "Effect": "Allow",
+            "Principal": "*",
+            "Action": [
+                "s3:GetObject"
+            ],
+            "Resource": [
+                "arn:aws:s3:::${aws_s3_bucket.aws-stacks-s3-bucket.bucket}/*"
+            ]
+        }
+    ]
+}
+EOF
+}
+
+resource "aws_s3_bucket_website_configuration" "aws-stacks-s3-bucket-web-conf" {
+  bucket = aws_s3_bucket.aws-stacks-s3-bucket.id
+
+  index_document {
+    suffix = "index.html"
+  }
+
+  error_document {
+    key = "error.html"
+  }
+}
+
+resource "aws_s3_object" "aws-stacks-s3-object-index" {
+  bucket       = aws_s3_bucket.aws-stacks-s3-bucket.id
+  key          = "index.html"
+  source       = "${path.module}/website/s3/index.html"
+  acl          = "public-read"
+  content_type = "text/html"
+
+  depends_on = [local_file.aws-stacks-website-index]
+}
+
+resource "aws_s3_object" "aws-stacks-s3-object-formtoapi" {
+  bucket       = aws_s3_bucket.aws-stacks-s3-bucket.id
+  key          = "formToApi.js"
+  source       = "${path.module}/website/s3/formToApi.js"
+  acl          = "public-read"
+  content_type = "text/html"
+
+  depends_on = [local_file.aws-stacks-website-formtoapi]
+}
