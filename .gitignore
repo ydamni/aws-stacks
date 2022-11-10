@@ -40,6 +40,8 @@ terraform.rc
 # End of https://www.toptal.com/developers/gitignore/api/terraform
 
 ### Files specific to the project
-compute/aws-stacks-ec2-access-key.pem
+**/aws-stacks-ec2-access-key.pem
 serverless/lambda_functions/*/*.zip
 serverless/lambda_functions/*/*.py
+database/aws-stacks-config-db.sql
+database/index.php
