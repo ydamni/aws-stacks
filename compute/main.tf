@@ -69,7 +69,7 @@ resource "aws_security_group" "aws-stacks-sg-lb" {
 
 resource "aws_security_group" "aws-stacks-sg-ec2" {
   name        = "aws-stacks-sg-ec2"
-  description = "Allow full access to EC2 from ALB only + SSH from my own public IP only"
+  description = "Allow full access to EC2 from ALB only + enable SSH using generated key"
   vpc_id      = data.aws_vpc.aws-stacks-vpc.id
 
   ingress {
@@ -85,7 +85,7 @@ resource "aws_security_group" "aws-stacks-sg-ec2" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = [var.public_ip]
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
