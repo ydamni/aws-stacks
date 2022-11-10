@@ -6,6 +6,10 @@ variables:
 # AWS_ACCOUNT_ID                - Protected
 # AWS_SECRET_ACCESS_KEY         - Protected/Masked
 # MYSQL_PASSWORD                - Protected/Masked
+# RDS_DB_ADMIN_USERNAME         - Protected
+# RDS_DB_ADMIN_PASSWORD         - Protected/Masked
+# RDS_DB_READER_USERNAME        - Protected
+# RDS_DB_READER_PASSWORD        - Protected/Masked
 # PUBLIC_IP                     - Protected/Masked
 # SERVERLESS_DEST_EMAIL         - Protected
 # SERVERLESS_SOURCE_EMAIL       - Protected
@@ -190,6 +194,36 @@ create serverless stack:
     - terraform init
     - terraform apply -var-file=main.tfvars -auto-approve
 
+create database stack:
+  stage: create
+  needs: ["create compute stack"]
+  when: manual
+  image:
+    name: hashicorp/terraform:1.2.2
+    entrypoint: [""]
+  artifacts:
+    paths:
+      - $CI_PROJECT_DIR/compute/aws-stacks-ec2-access-key.pem
+  only:
+    - main
+  before_script:
+    - apk add --no-cache python3 py3-pip
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+  script:
+    - cd ./database
+    ### Copy SSH Key to database folder
+    - cp $CI_PROJECT_DIR/compute/aws-stacks-ec2-access-key.pem .
+    - |
+      cat <<EOF | tee ./main.tfvars
+      db_admin_username  = "$RDS_DB_ADMIN_USERNAME"
+      db_admin_password  = "$RDS_DB_ADMIN_PASSWORD"
+      db_reader_username = "$RDS_DB_READER_USERNAME"
+      db_reader_password = "$RDS_DB_READER_PASSWORD"
+      EOF
+    - terraform init
+    - terraform apply -var-file=main.tfvars -auto-approve
+
 ### ###
 ### Destroy stage jobs
 ### ###
@@ -312,6 +346,36 @@ destroy serverless stack:
       destination_email = "$SERVERLESS_DEST_EMAIL"
       account_id        = "$AWS_ACCOUNT_ID"
       aws_region        = "$AWS_REGION"
+      EOF
+    - terraform init
+    - terraform destroy -var-file=main.tfvars -auto-approve
+
+destroy database stack:
+  stage: destroy
+  needs: ["create database stack"]
+  when: manual
+  image:
+    name: hashicorp/terraform:1.2.2
+    entrypoint: [""]
+  artifacts:
+    paths:
+      - $CI_PROJECT_DIR/compute/aws-stacks-ec2-access-key.pem
+  only:
+    - main
+  before_script:
+    - apk add --no-cache python3 py3-pip
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+  script:
+    - cd ./database
+    ### Copy SSH Key to database folder
+    - cp $CI_PROJECT_DIR/compute/aws-stacks-ec2-access-key.pem .
+    - |
+      cat <<EOF | tee ./main.tfvars
+      db_admin_username  = "$RDS_DB_ADMIN_USERNAME"
+      db_admin_password  = "$RDS_DB_ADMIN_PASSWORD"
+      db_reader_username = "$RDS_DB_READER_USERNAME"
+      db_reader_password = "$RDS_DB_READER_PASSWORD"
       EOF
     - terraform init
     - terraform destroy -var-file=main.tfvars -auto-approve
