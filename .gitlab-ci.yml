@@ -224,6 +224,23 @@ create database stack:
     - terraform init
     - terraform apply -var-file=main.tfvars -auto-approve
 
+create web hosting stack:
+  stage: create
+  when: manual
+  image:
+    name: hashicorp/terraform:1.2.2
+    entrypoint: [""]
+  only:
+    - main
+  before_script:
+    - apk add --no-cache python3 py3-pip
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+  script:
+    - cd ./web-hosting
+    - terraform init
+    - terraform apply -auto-approve
+
 ### ###
 ### Destroy stage jobs
 ### ###
@@ -379,3 +396,21 @@ destroy database stack:
       EOF
     - terraform init
     - terraform destroy -var-file=main.tfvars -auto-approve
+
+destroy web hosting stack:
+  stage: destroy
+  needs: ["create web hosting stack"]
+  when: manual
+  image:
+    name: hashicorp/terraform:1.2.2
+    entrypoint: [""]
+  only:
+    - main
+  before_script:
+    - apk add --no-cache python3 py3-pip
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+  script:
+    - cd ./web-hosting
+    - terraform init
+    - terraform destroy -auto-approve
