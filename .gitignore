@@ -45,3 +45,4 @@ serverless/lambda_functions/*/*.zip
 serverless/lambda_functions/*/*.py
 database/aws-stacks-config-db.sql
 database/index.php
+web-hosting/*.html
