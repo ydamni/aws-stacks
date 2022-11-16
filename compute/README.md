@@ -6,7 +6,7 @@
 
 ## Services used
 
-Security Groups + EC2 instances (Launch Configuration) + Auto Scaling Group + Target Group + Application Load Balancer
+EC2 (Launch Configuration) + Application Load Balancer
 
 ## Diagram
 

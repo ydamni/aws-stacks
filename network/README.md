@@ -6,7 +6,7 @@ None.
 
 ## Services used
 
-VPC + Subnets + Internet Gateway + Route Tables
+VPC
 
 ## Diagram
 
