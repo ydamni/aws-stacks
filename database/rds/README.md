@@ -2,7 +2,7 @@
 
 ## Dependencies
 
-[Compute Stack →](../compute/)
+[Compute Stack →](../../compute/)
 
 ## Services used
 

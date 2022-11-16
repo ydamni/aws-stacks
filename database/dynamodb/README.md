@@ -2,7 +2,7 @@
 
 ## Dependencies
 
-[Serverless Stack →](../serverless/)
+[Serverless Stack →](../../serverless/)
 
 ## Services used
 
