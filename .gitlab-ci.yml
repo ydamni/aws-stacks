@@ -194,7 +194,7 @@ create serverless stack:
     - terraform init
     - terraform apply -var-file=main.tfvars -auto-approve
 
-create database stack:
+create database stack with RDS:
   stage: create
   needs: ["create compute stack"]
   when: manual
@@ -211,8 +211,8 @@ create database stack:
     - pip3 install awscli
     - aws configure set region $AWS_REGION
   script:
-    - cd ./database
-    ### Copy SSH Key to database folder
+    - cd ./database/rds
+    ### Copy SSH Key to database/rds folder
     - cp $CI_PROJECT_DIR/compute/aws-stacks-ec2-access-key.pem .
     - |
       cat <<EOF | tee ./main.tfvars
@@ -367,9 +367,9 @@ destroy serverless stack:
     - terraform init
     - terraform destroy -var-file=main.tfvars -auto-approve
 
-destroy database stack:
+destroy database stack with RDS:
   stage: destroy
-  needs: ["create database stack"]
+  needs: ["create database stack with RDS"]
   when: manual
   image:
     name: hashicorp/terraform:1.2.2
@@ -384,8 +384,8 @@ destroy database stack:
     - pip3 install awscli
     - aws configure set region $AWS_REGION
   script:
-    - cd ./database
-    ### Copy SSH Key to database folder
+    - cd ./database/rds
+    ### Copy SSH Key to database/rds folder
     - cp $CI_PROJECT_DIR/compute/aws-stacks-ec2-access-key.pem .
     - |
       cat <<EOF | tee ./main.tfvars
