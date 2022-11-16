@@ -17,4 +17,4 @@ This way, it will be possible to **observe if some stacks are dependent on other
 
 Here is the current structure of the project:
 
-![Overview AWS Stacks](overview.svg)
+<img src="overview.svg" width="500">
