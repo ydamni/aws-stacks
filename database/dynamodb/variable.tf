@@ -1,0 +1,2 @@
+variable "source_email" {
+}

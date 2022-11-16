@@ -224,6 +224,31 @@ create database stack with RDS:
     - terraform init
     - terraform apply -var-file=main.tfvars -auto-approve
 
+create database stack with DynamoDB:
+  stage: create
+  needs: ["create serverless stack"]
+  when: manual
+  image:
+    name: hashicorp/terraform:1.2.2
+    entrypoint: [""]
+  only:
+    - main
+  before_script:
+    - apk add --no-cache python3 py3-pip
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+  script:
+    - cd ./database/dynamodb
+    - |
+      cat <<EOF | tee ./main.tfvars
+      source_email = "$SERVERLESS_SOURCE_EMAIL"
+      EOF
+    - terraform init
+    - terraform apply -var-file=main.tfvars -auto-approve
+    ### Update Lambda Functions
+    - aws lambda update-function-code --function-name email --zip-file fileb://ses/email.zip
+    - aws lambda update-function-code --function-name sms --zip-file fileb://sns/sms.zip
+
 create web hosting stack:
   stage: create
   when: manual
@@ -393,6 +418,28 @@ destroy database stack with RDS:
       db_admin_password  = "$RDS_DB_ADMIN_PASSWORD"
       db_reader_username = "$RDS_DB_READER_USERNAME"
       db_reader_password = "$RDS_DB_READER_PASSWORD"
+      EOF
+    - terraform init
+    - terraform destroy -var-file=main.tfvars -auto-approve
+
+destroy database stack with DynamoDB:
+  stage: destroy
+  needs: ["create database stack with DynamoDB"]
+  when: manual
+  image:
+    name: hashicorp/terraform:1.2.2
+    entrypoint: [""]
+  only:
+    - main
+  before_script:
+    - apk add --no-cache python3 py3-pip
+    - pip3 install awscli
+    - aws configure set region $AWS_REGION
+  script:
+    - cd ./database/dynamodb
+    - |
+      cat <<EOF | tee ./main.tfvars
+      source_email = "$SERVERLESS_SOURCE_EMAIL"
       EOF
     - terraform init
     - terraform destroy -var-file=main.tfvars -auto-approve

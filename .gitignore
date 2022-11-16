@@ -46,3 +46,5 @@ serverless/lambda_functions/*/*.py
 database/rds/aws-stacks-config-db.sql
 database/rds/index.php
 web-hosting/*.html
+database/dynamodb/*/*.py
+database/dynamodb/*/*.zip
