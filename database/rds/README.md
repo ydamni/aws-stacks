@@ -1,4 +1,4 @@
-# Database Stack
+# Database Stack using RDS
 
 ## Dependencies
 
@@ -10,4 +10,4 @@ RDS Database on MySQL
 
 ## Diagram
 
-![Database Stack Diagram](database.svg)
+![RDS Database Stack Diagram](database_rds.svg)
